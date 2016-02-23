@@ -1,0 +1,33 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.24720.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "UI", "UI", "{0F44913A-FD67-4EC9-860E-E386172766CE}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Forms", "Forms", "{78B1F6ED-0A23-42AB-A9C8-89CFDF41DE7F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Consoles", "Consoles", "{AE4C544A-C5F3-4053-94D2-48169F0290A7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mobahm-console", "mobahm-console\mobahm-console.csproj", "{A39965FD-A5C9-4007-938F-1974C49161D5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A39965FD-A5C9-4007-938F-1974C49161D5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A39965FD-A5C9-4007-938F-1974C49161D5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A39965FD-A5C9-4007-938F-1974C49161D5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A39965FD-A5C9-4007-938F-1974C49161D5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{78B1F6ED-0A23-42AB-A9C8-89CFDF41DE7F} = {0F44913A-FD67-4EC9-860E-E386172766CE}
+		{AE4C544A-C5F3-4053-94D2-48169F0290A7} = {0F44913A-FD67-4EC9-860E-E386172766CE}
+		{A39965FD-A5C9-4007-938F-1974C49161D5} = {AE4C544A-C5F3-4053-94D2-48169F0290A7}
+	EndGlobalSection
+EndGlobal
