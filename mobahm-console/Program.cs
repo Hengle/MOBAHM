@@ -16,6 +16,37 @@ using Win32.Enums;
 
 namespace mobahm_console
 {
+    /// <summary>
+    ///                 Main()
+    ///                   l
+    ///                   v
+    ///                Program()
+    ///                   l
+    ///                   v
+    ///            Program.Start()
+    ///                   l
+    ///                   v
+    ///           CheckCredentials()
+    ///                   l
+    ///      l------------l----------l----------------l
+    ///      l                       l                l
+    ///      l (FileNotFound)        l (NoPassword)   | (AllCredentials: Auto Log In)
+    ///      `---------   -----------/                l
+    ///                ` /                            l
+    ///                 v                             l
+    ///             UILogOff()                        l
+    ///                 l                             l
+    ///      l-----------------------|                l
+    ///      l                       l                l
+    ///      l 2. UIRegister()       l 1. UILogIn()   l
+    ///      v                       v                l
+    ///  Register()                LogIn()            l
+    ///      `---------   -----------/                l
+    ///                ` /                            l
+    ///                 l----------------------------/
+    ///                 v
+    ///              UILogOn()
+    /// </summary>
     public class Program
     {
         private static readonly int MAX_WIDTH = 80;
@@ -68,6 +99,10 @@ namespace mobahm_console
 
             private string GetPassword(string x, string y)
             {
+                using (var sha256 = SHA256.Create())
+                {
+
+                }
                 var md5 = MD5.Create();
                 var bs = md5.ComputeHash(Encoding.UTF8.GetBytes(string.Format("{0}:{1}", x, y)));
                 return string.Join("", bs.Select(z => string.Format("{0:x02}", z)));
@@ -84,6 +119,7 @@ namespace mobahm_console
 
         private void Start()
         {
+            /// Make Console UI to Maximize
             ShowWindow(Process.GetCurrentProcess().MainWindowHandle,
                 ShowWindowCommands.SW_SHOWMAXIMIZED | ShowWindowCommands.SW_MAXIMIZE);
 
@@ -325,6 +361,18 @@ namespace mobahm_console
             Console.WriteLine("  2. test2");
             Console.WriteLine("  3. test3");
             Console.WriteLine("  4. test4");
+        }
+    }
+
+    public static class Extensions
+    {
+        public static string Join(this string separator, IEnumerable<string> values)
+        {
+            return string.Join(separator, values);
+        }
+        public static string Join(this string separator, params object[] values)
+        {
+            return string.Join(separator, values);
         }
     }
 }
