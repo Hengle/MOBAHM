@@ -28,22 +28,30 @@ namespace mobahm_console
     ///                   v
     ///           CheckCredentials()
     ///                   l
-    ///      l------------l----------l----------------l
-    ///      l                       l                l
-    ///      l (FileNotFound)        l (NoPassword)   | (AllCredentials: Auto Log In)
-    ///      `---------   -----------/                l
-    ///                ` /                            l
-    ///                 v                             l
-    ///             UILogOff()                        l
-    ///                 l                             l
-    ///      l-----------------------|                l
-    ///      l                       l                l
-    ///      l 2. UIRegister()       l 1. UILogIn()   l
-    ///      v                       v                l
-    ///  Register()                LogIn()            l
-    ///      `---------   -----------/                l
-    ///                ` /                            l
-    ///                 l----------------------------/
+    ///      l------------l----------l--------------------l
+    ///      l                       l                    l
+    ///      l (FileNotFound)        l (NoPassword)       | (AllCredentials: Auto Log In)
+    ///      l                       l                    l
+    ///      `---------   -----------/                    l
+    ///                ` /                                l
+    ///                 l                                 l
+    ///                 v                                 l
+    ///             UILogOff()                            l
+    ///                 l                                 l
+    ///      l-----------------------|                    l
+    ///      l                       l                    l
+    ///      l                       l--------------------/
+    ///      l 2. UIRegister()       l 1. UILogIn()
+    ///      l                       l
+    ///      v                       v
+    ///  Register()                LogIn()
+    ///      l                       l
+    ///      `---------   -----------/
+    ///                ` /
+    ///                 l
+    ///                 v
+    ///           Program.Loop()
+    ///                 l
     ///                 v
     ///              UILogOn()
     /// </summary>
@@ -62,23 +70,23 @@ namespace mobahm_console
             program.Start();
             while (program.Loop()) ;
 
-            Console.ReadKey();
+            //Console.ReadKey();
         }
 
         private class User
         {
+            public UserState State { get; set; }
             public string Account { get; private set; }
             public string Name { get; }
             public int Experience { get; }
             public int Money { get; }
             public string Password { get; private set; }
 
-            public User(string Account) : this(Account, string.Empty, -1, -1)
-            {
-
-            }
+            public User() : this(string.Empty) { }
+            public User(string Account) : this(Account, string.Empty, -1, -1) { }
             public User(string Account, string Name, int Experience, int Money)
             {
+                this.State = UserState.LogOff;
                 this.Account = Account;
                 this.Name = Name;
                 this.Experience = Experience;
@@ -101,18 +109,140 @@ namespace mobahm_console
             {
                 using (var sha256 = SHA256.Create())
                 {
-
+                    return "".Join(sha256.ComputeHash(Encoding.UTF8.GetBytes($"{x}:{y}")).Select(z => $"{z:x02}"));
                 }
-                var md5 = MD5.Create();
-                var bs = md5.ComputeHash(Encoding.UTF8.GetBytes(string.Format("{0}:{1}", x, y)));
-                return string.Join("", bs.Select(z => string.Format("{0:x02}", z)));
             }
         }
         private enum UserState
         {
             LogOff, LogOn
         }
+        private User player = new User(string.Empty);
 
+        private void Start()
+        {
+            switch (CheckCredentials())
+            {
+                case CredentialsState.FileNotFound:
+                case CredentialsState.NoPassword:
+                    UILogOff();
+                    break;
+                case CredentialsState.AllCredentials:
+                    break;
+            }
+        }
+        private bool Loop()
+        {
+            if (Console.ReadKey(true).Key == ConsoleKey.Q)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        private enum CredentialsState
+        {
+            FileNotFound, NoPassword, AllCredentials
+        }
+        private CredentialsState CheckCredentials()
+        {
+            if (File.Exists("credentials.json"))
+            {
+                var credentials = JObject.Parse(File.ReadAllText("credentials.json"));
+                /*
+                JToken token = null;
+                if (credentials.TryGetValue("account", out token))
+                {
+                    string account = token.Value<string>();
+                    if (credentials.TryGetValue("hash", out token))
+                    {
+                        string hash = token.Value<string>();
+                        return CredentialsState.AllCredentials;
+                    }
+                    return CredentialsState.NoPassword;
+                }
+                /// error: account not found
+                return CredentialsState.FileNotFound;
+                */
+                string account = credentials.Value<string>("account");
+                if (account == null)
+                {
+                    /// error: account not found
+                    return CredentialsState.FileNotFound;
+                }
+                string hash = credentials.Value<string>("hash");
+                if (hash == null)
+                {
+                    return CredentialsState.NoPassword;
+                }
+                return CredentialsState.AllCredentials;
+            }
+            return CredentialsState.FileNotFound;
+        }
+
+        private void UI()
+        {
+            switch (player.State)
+            {
+                case UserState.LogOff:
+                    UILogOff();
+                    break;
+                case UserState.LogOn:
+                    UILogOn();
+                    break;
+            }
+        }
+        private void UILogOff()
+        {
+            UITop();
+        }
+        private void UILogOn()
+        {
+
+        }
+        private void UITop()
+        {
+            Console.SetCursorPosition(0, 0);
+
+            Console.BackgroundColor = ConsoleColor.DarkBlue;
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine(new string('=', MAX_WIDTH));
+
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            string version = $"v{Assembly.GetExecutingAssembly().GetName().Version} ";
+            Console.Write(new string(' ', MAX_WIDTH - version.Length()));
+            Console.WriteLine(version);
+
+            string name = " Multiplayer Online Battle Arena Heroes Manager ";
+            Console.Write(new string(' ', (MAX_WIDTH - name.Length()) / 2));
+            Console.BackgroundColor = ConsoleColor.DarkGreen;
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write(name);
+            Console.BackgroundColor = ConsoleColor.DarkBlue;
+            Console.WriteLine(new string(' ', (MAX_WIDTH - name.Length()) / 2));
+
+            Console.ForegroundColor = ConsoleColor.White;
+            string author = "made by R ";
+            Console.Write(new string(' ', MAX_WIDTH - author.Length()));
+            Console.WriteLine(author);
+
+            string user = " [ 로그인이 필요합니다 ]";
+            if (player.State == UserState.LogOn)
+            {
+                user = $" [ {player.Name}({player.Account}) 접속 ]";
+            }
+            var now = DateTime.Now;
+            string latest = $"최근 갱신 시간 : {now.Hour:00}:{now.Minute:00}:{now.Second:00} ";
+            Console.Write(user);
+            Console.Write(new string(' ', MAX_WIDTH - user.Length() - latest.Length()));
+            Console.BackgroundColor = ConsoleColor.DarkBlue;
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine(latest);
+
+            Console.WriteLine(new string('=', MAX_WIDTH));
+        }
+
+        /*
         //private User player = new User("test").SetPassword("test");
         //private User player = new User("r");
         private User player = new User(string.Empty);
@@ -123,30 +253,29 @@ namespace mobahm_console
             ShowWindow(Process.GetCurrentProcess().MainWindowHandle,
                 ShowWindowCommands.SW_SHOWMAXIMIZED | ShowWindowCommands.SW_MAXIMIZE);
 
-            /*
-            var config = new FirebaseConfig()
-            {
-                BasePath = "https://brilliant-torch-522.firebaseio.com/",
-                AuthSecret = "WUX7MzRBwzKD0yC8brqEuMWtjgYg3zSbewCQMhTa",
-            };
-            var client = new FirebaseClient(config);
+            //var config = new FirebaseConfig()
+            //{
+            //    BasePath = "https://brilliant-torch-522.firebaseio.com/",
+            //    AuthSecret = "WUX7MzRBwzKD0yC8brqEuMWtjgYg3zSbewCQMhTa",
+            //};
+            //var client = new FirebaseClient(config);
             
-            var user = client.Get(string.Format("users/{0}", player.Account)).ResultAs<JObject>();
-            if (user == null)
-            {
-                Console.WriteLine("not found");
-            }
-            else if (user.Value<string>("password").Equals(player.Password))
-            {
-                player.Name = user.Value<string>("name");
-                player.Experience = user.Value<int>("experience");
-                player.Money = user.Value<int>("money");
-            }
-            else
-            {
-                Console.WriteLine("password invalid");
-            }
-            */
+            //var user = client.Get(string.Format("users/{0}", player.Account)).ResultAs<JObject>();
+            //if (user == null)
+            //{
+            //    Console.WriteLine("not found");
+            //}
+            //else if (user.Value<string>("password").Equals(player.Password))
+            //{
+            //    player.Name = user.Value<string>("name");
+            //    player.Experience = user.Value<int>("experience");
+            //    player.Money = user.Value<int>("money");
+            //}
+            //else
+            //{
+            //    Console.WriteLine("password invalid");
+            //}
+
             if (File.Exists("credentials.json"))
             {
                 var credentials = JObject.Parse(File.ReadAllText("credentials.json"));
@@ -169,16 +298,7 @@ namespace mobahm_console
         private bool Loop()
         {
             Console.WriteLine("loop");
-
-            /*
-            UI();
-
-            var cki = Console.ReadKey(true);
-            if (cki.Key == ConsoleKey.Q)
-            {
-                return false;
-            }
-            */
+            
             if (UI() && Console.ReadKey(true).Key == ConsoleKey.Q)
             {
                 return false;
@@ -362,6 +482,7 @@ namespace mobahm_console
             Console.WriteLine("  3. test3");
             Console.WriteLine("  4. test4");
         }
+        */
     }
 
     public static class Extensions
@@ -373,6 +494,12 @@ namespace mobahm_console
         public static string Join(this string separator, params object[] values)
         {
             return string.Join(separator, values);
+        }
+
+        public static int Length(this string s, Encoding encoding = null)
+        {
+            encoding = encoding ?? Encoding.Default;
+            return encoding.GetByteCount(s);
         }
     }
 }
