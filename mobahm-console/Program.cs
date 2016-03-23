@@ -121,6 +121,10 @@ namespace mobahm_console
 
         private void Start()
         {
+            /// Make Console UI to Maximize
+            ShowWindow(Process.GetCurrentProcess().MainWindowHandle,
+                ShowWindowCommands.SW_SHOWMAXIMIZED | ShowWindowCommands.SW_MAXIMIZE);
+
             switch (CheckCredentials())
             {
                 case CredentialsState.FileNotFound:
