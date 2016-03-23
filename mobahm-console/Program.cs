@@ -115,7 +115,8 @@ namespace mobahm_console
         }
         private enum UserState
         {
-            LogOff, LogOn
+            LogOff, LogOn,
+            Exit
         }
         private User player = new User(string.Empty);
 
@@ -130,7 +131,7 @@ namespace mobahm_console
             {
                 case CredentialsState.FileNotFound:
                 case CredentialsState.NoPassword:
-                    UILogOff();
+                    //UILogOff();
                     break;
                 case CredentialsState.AllCredentials:
                     break;
@@ -138,6 +139,8 @@ namespace mobahm_console
         }
         private bool Loop()
         {
+            if (UI() == false) return false;
+
             if (Console.ReadKey(true).Key == ConsoleKey.Q)
             {
                 return false;
@@ -185,17 +188,15 @@ namespace mobahm_console
             return CredentialsState.FileNotFound;
         }
 
-        private void UI()
+        private bool UI()
         {
             switch (player.State)
             {
-                case UserState.LogOff:
-                    UILogOff();
-                    break;
-                case UserState.LogOn:
-                    UILogOn();
-                    break;
+                case UserState.LogOff: UILogOff(); break;
+                case UserState.LogOn: UILogOn(); break;
+                case UserState.Exit: return false;
             }
+            return true;
         }
         private void UILogOff()
         {
@@ -247,23 +248,62 @@ namespace mobahm_console
 
             Console.WriteLine(new string('=', MAX_WIDTH));
         }
-        private void UICenter()
+        private void UICenter(ConsoleKey? key = null)
         {
-            Console.SetCursorPosition(0, 7);
+            Console.SetCursorPosition(0, 6);
 
-            Console.BackgroundColor = ConsoleColor.Black;
-            Console.ForegroundColor = ConsoleColor.White;
-            var items = new string[]
+            if (player.State == UserState.LogOff)
             {
-                "1. 유저 로그인",
-                "2. 유저 등록",
-                "Q. 프로그램 종료",
-            };
-            int padding = (MAX_WIDTH - items.Select(x => x.Length).Max()) / 2 - 4;
-            foreach (string x in items)
-            {
-                Console.Write(new string(' ', padding));
-                Console.WriteLine(x);
+                var items = new Dictionary<ConsoleKey, string>();
+                items.Add(ConsoleKey.D1, "1. 유저 로그인");
+                items.Add(ConsoleKey.D2, "2. 유저 등록");
+                items.Add(ConsoleKey.Q, "Q. 프로그램 종료");
+
+                Console.SetCursorPosition(0, 8);
+
+                Console.BackgroundColor = ConsoleColor.Black;
+                Console.ForegroundColor = ConsoleColor.White;
+                int padding = (MAX_WIDTH - items.Select(x => x.Value.Length).Max()) / 2 - 4;
+                foreach (var x in items)
+                {
+                    Console.Write(new string(' ', padding));
+                    if (key.HasValue && x.Key == key.Value)
+                    {
+                        Console.BackgroundColor = ConsoleColor.Gray;
+                        Console.ForegroundColor = ConsoleColor.Red;
+                    }
+                    else
+                    {
+                        Console.BackgroundColor = ConsoleColor.Black;
+                        Console.ForegroundColor = ConsoleColor.White;
+                    }
+                    Console.WriteLine(x.Value);
+                    Console.BackgroundColor = ConsoleColor.Black;
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.WriteLine();
+                }
+
+                /*
+                int index = key.HasValue ? items.Keys.ToList().IndexOf(key.Value) : -1;
+                var cki = Console.ReadKey(true);
+                switch (cki.Key)
+                {
+                    case ConsoleKey.D1:
+                    case ConsoleKey.D2:
+                        break;
+                    case ConsoleKey.Q: player.State = UserState.Exit; break;
+                    case ConsoleKey.UpArrow:
+                        index--;
+                        if (index < 0) index = items.Count - 1;
+                        UICenter(items.Keys.ToArray()[(index) % items.Count]);
+                        //UICenter(items.Keys.ToArray()[(index - 1 + items.Count) % items.Count]);
+                        break;
+                    case ConsoleKey.DownArrow: UICenter(items.Keys.ToArray()[(index + 1) % items.Count]); break;
+                    case ConsoleKey.Enter:
+                        if (index >= 0) UICenter(items.Keys.ToArray()[index]);
+                        break;
+                }
+                */
             }
         }
 
