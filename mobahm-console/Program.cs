@@ -121,6 +121,11 @@ namespace mobahm_console
 
         private void Start()
         {
+            /// Make Console UI to Maximize
+            ShowWindow(Process.GetCurrentProcess().MainWindowHandle,
+                ShowWindowCommands.SW_SHOWMAXIMIZED | ShowWindowCommands.SW_MAXIMIZE);
+
+            /// Check Credentials File
             switch (CheckCredentials())
             {
                 case CredentialsState.FileNotFound:
@@ -195,6 +200,7 @@ namespace mobahm_console
         private void UILogOff()
         {
             UITop();
+            UICenter();
         }
         private void UILogOn()
         {
@@ -241,6 +247,27 @@ namespace mobahm_console
 
             Console.WriteLine(new string('=', MAX_WIDTH));
         }
+        private void UICenter()
+        {
+            Console.SetCursorPosition(0, 7);
+
+            Console.BackgroundColor = ConsoleColor.Black;
+            Console.ForegroundColor = ConsoleColor.White;
+            var items = new string[]
+            {
+                "1. 유저 로그인",
+                "2. 유저 등록",
+                "Q. 프로그램 종료",
+            };
+            int padding = (MAX_WIDTH - items.Select(x => x.Length).Max()) / 2 - 4;
+            foreach (string x in items)
+            {
+                Console.Write(new string(' ', padding));
+                Console.WriteLine(x);
+            }
+        }
+
+
 
         /*
         //private User player = new User("test").SetPassword("test");
