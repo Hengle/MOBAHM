@@ -11,7 +11,9 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using Win32.Enums;
 
 namespace mobahm_console
@@ -80,18 +82,26 @@ namespace mobahm_console
             public string Name { get; }
             public int Experience { get; }
             public int Money { get; }
-            public string Password { get; private set; }
+            public string Hash { get; private set; }
 
             public User() : this(string.Empty) { }
-            public User(string Account) : this(Account, string.Empty, -1, -1) { }
-            public User(string Account, string Name, int Experience, int Money)
+            public User(string Account)
             {
                 this.State = UserState.LogOff;
+                this.Account = Account;
+                this.Name = string.Empty;
+                this.Experience = -1;
+                this.Money = -1;
+                this.Hash = string.Empty;
+            }
+            public User(string Account, string Name, int Experience, int Money)
+            {
+                this.State = UserState.LogOn;
                 this.Account = Account;
                 this.Name = Name;
                 this.Experience = Experience;
                 this.Money = Money;
-                this.Password = string.Empty;
+                this.Hash = string.Empty;
             }
 
             public User SetAccount(string Account)
@@ -101,7 +111,12 @@ namespace mobahm_console
             }
             public User SetPassword(string Password)
             {
-                this.Password = GetPassword(this.Account, Password);
+                this.Hash = GetPassword(this.Account, Password);
+                return this;
+            }
+            public User SetHash(string Hash)
+            {
+                this.Hash = Hash;
                 return this;
             }
 
@@ -116,7 +131,15 @@ namespace mobahm_console
         private enum UserState
         {
             LogOff, LogOn,
-            Exit
+            LogIn, Register,
+            Exit,
+        }
+        private enum LogInState : int
+        {
+            InputAccount, InputPassword,
+            AllCredentials,
+            WrongAccount, WrongHash,
+            InvalidAccount, InvalidHash,
         }
         private User player = new User(string.Empty);
 
@@ -139,12 +162,13 @@ namespace mobahm_console
         }
         private bool Loop()
         {
-            if (UI() == false) return false;
-
-            if (Console.ReadKey(true).Key == ConsoleKey.Q)
+            if (UI() == false)
             {
                 return false;
             }
+            Thread.Sleep(100);
+
+            //if (Console.ReadKey(true).Key == ConsoleKey.Q) return false;
             return true;
         }
 
@@ -157,6 +181,7 @@ namespace mobahm_console
             if (File.Exists("credentials.json"))
             {
                 var credentials = JObject.Parse(File.ReadAllText("credentials.json"));
+
                 /*
                 JToken token = null;
                 if (credentials.TryGetValue("account", out token))
@@ -172,17 +197,22 @@ namespace mobahm_console
                 /// error: account not found
                 return CredentialsState.FileNotFound;
                 */
+
                 string account = credentials.Value<string>("account");
                 if (account == null)
                 {
                     /// error: account not found
                     return CredentialsState.FileNotFound;
                 }
+                player.SetAccount(account);
+
                 string hash = credentials.Value<string>("hash");
                 if (hash == null)
                 {
                     return CredentialsState.NoPassword;
                 }
+                player.SetHash(hash);
+
                 return CredentialsState.AllCredentials;
             }
             return CredentialsState.FileNotFound;
@@ -193,8 +223,15 @@ namespace mobahm_console
             switch (player.State)
             {
                 case UserState.LogOff: UILogOff(); break;
+                case UserState.LogIn: UILogIn(); break;
+                case UserState.Register: UIRegister(); break;
                 case UserState.LogOn: UILogOn(); break;
                 case UserState.Exit: return false;
+            }
+            if (player.State == UserState.Exit)
+            {
+                Console.WriteLine(" MOBAHM 프로그램을 종료합니다.");
+                Thread.Sleep(1000);
             }
             return true;
         }
@@ -203,9 +240,19 @@ namespace mobahm_console
             UITop();
             UICenter();
         }
+        private void UILogIn()
+        {
+            UITop();
+            UICenter();
+        }
+        private void UIRegister()
+        {
+            UITop();
+            UICenter();
+        }
         private void UILogOn()
         {
-
+            UITop();
         }
         private void UITop()
         {
@@ -248,63 +295,432 @@ namespace mobahm_console
 
             Console.WriteLine(new string('=', MAX_WIDTH));
         }
-        private void UICenter(ConsoleKey? key = null)
+        private void UICenter()
         {
             Console.SetCursorPosition(0, 6);
 
             if (player.State == UserState.LogOff)
             {
                 var items = new Dictionary<ConsoleKey, string>();
-                items.Add(ConsoleKey.D1, "1. 유저 로그인");
-                items.Add(ConsoleKey.D2, "2. 유저 등록");
-                items.Add(ConsoleKey.Q, "Q. 프로그램 종료");
+                items.Add(ConsoleKey.D1, " 1. 유저 로그인 ");
+                items.Add(ConsoleKey.D2, " 2. 유저 등록 ");
+                items.Add(ConsoleKey.Q, " Q. 프로그램 종료 ");
+                int padding = (MAX_WIDTH - items.Select(x => x.Value.Length).Max()) / 2 - 4;
 
+                int index = -1;
+                var key = ConsoleKey.Escape;
+                while (items.ContainsKey(key) == false)
+                {
+                    Console.SetCursorPosition(0, 8);
+
+                    foreach (var x in items)
+                    {
+                        Console.BackgroundColor = ConsoleColor.Black;
+                        Console.ForegroundColor = ConsoleColor.White;
+                        Console.Write(new string(' ', padding));
+
+                        if (index >= 0 && x.Key == items.Keys.ToArray()[index % items.Count])
+                        {
+                            Console.BackgroundColor = ConsoleColor.Gray;
+                            Console.ForegroundColor = ConsoleColor.Black;
+                        }
+                        Console.Write(x.Value);
+
+                        Console.BackgroundColor = ConsoleColor.Black;
+                        Console.ForegroundColor = ConsoleColor.White;
+                        Console.WriteLine(new string(' ', MAX_WIDTH - (padding + x.Value.Length)));
+                        Console.WriteLine();
+                    }
+
+                    key = Console.ReadKey(true).Key;
+
+                    switch (key)
+                    {
+                        case ConsoleKey.UpArrow:
+                            if (index < 0) index = items.Count;
+                            index = (index - 1 + items.Count) % items.Count;
+                            break;
+                        case ConsoleKey.DownArrow:
+                            index = (index + 1) % items.Count;
+                            break;
+                        case ConsoleKey.Enter:
+                            if (index >= 0)
+                            {
+                                key = items.Keys.ToArray()[index % items.Count];
+                            }
+                            break;
+                    }
+                    if (items.ContainsKey(key))
+                    {
+                        switch (key)
+                        {
+                            case ConsoleKey.D1: player.State = UserState.LogIn; break;
+                            case ConsoleKey.D2: player.State = UserState.Register; break;
+                            case ConsoleKey.Q: player.State = UserState.Exit; break;
+                        }
+
+                        Console.SetCursorPosition(0, 8);
+                        Console.BackgroundColor = ConsoleColor.Black;
+                        Console.ForegroundColor = ConsoleColor.White;
+                        foreach (var x in Enumerable.Range(0, items.Count * 2))
+                        {
+                            Console.WriteLine(new string(' ', MAX_WIDTH));
+                        }
+
+                        break;
+                    }
+                }
+            }
+            else if (player.State == UserState.LogIn)
+            {
                 Console.SetCursorPosition(0, 8);
 
                 Console.BackgroundColor = ConsoleColor.Black;
                 Console.ForegroundColor = ConsoleColor.White;
-                int padding = (MAX_WIDTH - items.Select(x => x.Value.Length).Max()) / 2 - 4;
-                foreach (var x in items)
-                {
-                    Console.Write(new string(' ', padding));
-                    if (key.HasValue && x.Key == key.Value)
-                    {
-                        Console.BackgroundColor = ConsoleColor.Gray;
-                        Console.ForegroundColor = ConsoleColor.Red;
-                    }
-                    else
-                    {
-                        Console.BackgroundColor = ConsoleColor.Black;
-                        Console.ForegroundColor = ConsoleColor.White;
-                    }
-                    Console.WriteLine(x.Value);
-                    Console.BackgroundColor = ConsoleColor.Black;
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.WriteLine();
-                }
 
-                /*
-                int index = key.HasValue ? items.Keys.ToList().IndexOf(key.Value) : -1;
-                var cki = Console.ReadKey(true);
-                switch (cki.Key)
+                var step = LogInState.InputAccount;
+
+                string account = player.Account;
+                string password = string.Empty;
+
+                while (true)
                 {
-                    case ConsoleKey.D1:
-                    case ConsoleKey.D2:
-                        break;
-                    case ConsoleKey.Q: player.State = UserState.Exit; break;
-                    case ConsoleKey.UpArrow:
-                        index--;
-                        if (index < 0) index = items.Count - 1;
-                        UICenter(items.Keys.ToArray()[(index) % items.Count]);
-                        //UICenter(items.Keys.ToArray()[(index - 1 + items.Count) % items.Count]);
-                        break;
-                    case ConsoleKey.DownArrow: UICenter(items.Keys.ToArray()[(index + 1) % items.Count]); break;
-                    case ConsoleKey.Enter:
-                        if (index >= 0) UICenter(items.Keys.ToArray()[index]);
-                        break;
+                    Console.SetCursorPosition(0, 8);
+                    Console.BackgroundColor = ConsoleColor.Black;
+                    Console.WriteLine(new string(' ', MAX_WIDTH));
+
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.SetCursorPosition(10, 8);
+                    string accountPrefix = "아 이 디 : ";
+                    Console.Write(accountPrefix);
+
+                    if (step != LogInState.InputAccount)
+                    {
+                        if (account.Length > 0)
+                        {
+                            Console.BackgroundColor = ConsoleColor.DarkBlue;
+                        }
+                        else
+                        {
+                            Console.BackgroundColor = ConsoleColor.DarkRed;
+                        }
+                        Console.ForegroundColor = ConsoleColor.Gray;
+                    }
+                    Console.Write(account);
+                    Console.Write(new string(' ', MAX_WIDTH - (10 + accountPrefix.Length() + account.Length() + 20)));
+
+                    Console.SetCursorPosition(0, 9);
+                    Console.BackgroundColor = ConsoleColor.Black;
+                    Console.WriteLine(new string(' ', MAX_WIDTH));
+
+                    Console.SetCursorPosition(10, 9);
+                    Console.ForegroundColor = ConsoleColor.White;
+                    string passwordPrefix = "비밀번호 : ";
+                    Console.Write(passwordPrefix);
+
+                    if (step != LogInState.InputPassword)
+                    {
+                        if (password.Length > 0)
+                        {
+                            Console.BackgroundColor = ConsoleColor.DarkBlue;
+                        }
+                        else
+                        {
+                            Console.BackgroundColor = ConsoleColor.DarkRed;
+                        }
+                        Console.ForegroundColor = ConsoleColor.Gray;
+                    }
+                    Console.Write(new string('*', password.Length));
+                    Console.Write(new string(' ', MAX_WIDTH - (10 + passwordPrefix.Length() + password.Length() + 20)));
+
+                    //Console.SetCursorPosition(0, 13);
+                    //Console.BackgroundColor = ConsoleColor.Black;
+                    //Console.ForegroundColor = ConsoleColor.White;
+                    //Console.WriteLine(" <Ctrl + C> 종료");
+
+                    //MessageBox.Show(step.ToString());
+                    //int left = Console.CursorLeft;
+                    //int top = Console.CursorTop;
+                    //Console.SetCursorPosition(0, 20);
+                    //Console.WriteLine(step);
+                    //Console.SetCursorPosition(left, top);
+                    if (step == LogInState.InputAccount)
+                    {
+                    }
+                    else if (step == LogInState.InputPassword)
+                    {
+                    }
+                    else if (step == LogInState.AllCredentials)
+                    {
+                        bool error = false;
+                        var code = step;
+                        string message = string.Empty;
+
+                        if (account.Length <= 0)
+                        {
+                            step = LogInState.InputAccount;
+                            error = true;
+                            message = "아이디를 입력해주세요.";
+                        }
+                        else if (password.Length <= 0)
+                        {
+                            step = LogInState.InputPassword;
+                            error = true;
+                            message = "비밀번호를 입력해주세요.";
+                        }
+
+                        JObject user = null;
+                        if (error == false)
+                        {
+                            player.SetAccount(account).SetPassword(password);
+                            Console.SetCursorPosition(10 + passwordPrefix.Length() + password.Length(), 9);
+                            password = string.Empty;
+                            var login = LogIn();
+                            error = login.Value<bool>("error");
+                            if (error)
+                            {
+                                message = login.Value<string>("errorMessage");
+                                code = (LogInState)login.Value<int>("errorCode");
+                            }
+                            else
+                            {
+                                user = login.Value<JObject>("user");
+                            }
+                        }
+
+                        if (error)
+                        {
+                            Console.SetCursorPosition(0, 11);
+                            Console.BackgroundColor = ConsoleColor.Black;
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine(new string(' ', MAX_WIDTH));
+
+                            Console.SetCursorPosition(10, 11);
+                            Console.BackgroundColor = ConsoleColor.Black;
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine(message);
+                            
+                            switch (code)
+                            {
+                                case LogInState.WrongAccount: step = LogInState.InputAccount; break;
+                                case LogInState.WrongHash: step = LogInState.InputPassword; break;
+                            }
+                            continue;
+                        }
+                        else
+                        {
+                            string name = user.Value<string>("name");
+                            int money = user.Value<int>("money");
+                            int experience = user.Value<int>("experience");
+                            player = new User(account, name, money, experience);
+                            break;
+                        }
+                        /*
+                        if (account.Length <= 0)
+                        {
+                            step = LogInState.InputAccount;
+
+                            Console.SetCursorPosition(0, 11);
+                            Console.BackgroundColor = ConsoleColor.Black;
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine(new string(' ', MAX_WIDTH));
+
+                            Console.SetCursorPosition(10, 11);
+                            Console.BackgroundColor = ConsoleColor.Black;
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine("아이디를 입력해주세요.");
+
+                            continue;
+                        }
+                        if (password.Length <= 0)
+                        {
+                            step = LogInState.InputPassword;
+
+                            Console.SetCursorPosition(0, 11);
+                            Console.BackgroundColor = ConsoleColor.Black;
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine(new string(' ', MAX_WIDTH));
+
+                            Console.SetCursorPosition(10, 11);
+                            Console.BackgroundColor = ConsoleColor.Black;
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine("비밀번호를 입력해주세요.");
+
+                            continue;
+                        }
+
+                        player.SetAccount(account).SetPassword(password);
+                        password = string.Empty;
+                        var fc = new FirebaseClient(new FirebaseConfig() { BasePath = "https://mobahm.firebaseio.com/" });
+                        var fr = fc.Get($"users/{account}");
+                        var user = fr.ResultAs<JObject>();
+
+                        if (user == null)
+                        {
+                            step = LogInState.InputAccount;
+
+                            Console.SetCursorPosition(0, 11);
+                            Console.BackgroundColor = ConsoleColor.Black;
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine(new string(' ', MAX_WIDTH));
+
+                            Console.SetCursorPosition(10, 11);
+                            Console.BackgroundColor = ConsoleColor.Black;
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine("존재하지 않는 아이디입니다.");
+
+                            continue;
+                        }
+                        else if (user.Value<string>("hash").Equals(player.Hash))
+                        {
+                            string name = user.Value<string>("name");
+                            int money = user.Value<int>("money");
+                            int experience = user.Value<int>("experience");
+                            player = new User(account, name, money, experience);
+
+                            Console.SetCursorPosition(0, 8);
+                            Console.BackgroundColor = ConsoleColor.Black;
+                            Console.ForegroundColor = ConsoleColor.White;
+                            foreach (var x in Enumerable.Range(0, 5))
+                            {
+                                Console.WriteLine(new string(' ', MAX_WIDTH));
+                            }
+
+                            break;
+                        }
+                        else
+                        {
+                            step = LogInState.InputPassword;
+
+                            Console.SetCursorPosition(0, 11);
+                            Console.BackgroundColor = ConsoleColor.Black;
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine(new string(' ', MAX_WIDTH));
+
+                            Console.SetCursorPosition(10, 11);
+                            Console.BackgroundColor = ConsoleColor.Black;
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine("비밀번호가 일치하지 않습니다.");
+
+                            continue;
+                        }
+                        */
+                    }
+
+                    switch (step)
+                    {
+                        case LogInState.InputAccount:
+                            Console.SetCursorPosition(10 + accountPrefix.Length() + account.Length(), 8);
+                            break;
+                        case LogInState.InputPassword:
+                            Console.SetCursorPosition(10 + passwordPrefix.Length() + password.Length(), 9);
+                            break;
+
+                    }
+
+                    var cki = Console.ReadKey(true);
+                    switch (cki.Key)
+                    {
+                        case ConsoleKey.Backspace:
+                            if (step == LogInState.InputAccount)
+                            {
+                                if (account.Length > 0)
+                                {
+                                    account = account.Substring(0, account.Length - 1);
+                                }
+                            }
+                            else if (step == LogInState.InputPassword)
+                            {
+                                if (password.Length > 0)
+                                {
+                                    password = password.Substring(0, password.Length - 1);
+                                }
+                            }
+                            break;
+                        case ConsoleKey.Tab:
+                            if (step == LogInState.InputAccount)
+                            {
+                                step = LogInState.InputPassword;
+                            }
+                            else if (step == LogInState.InputPassword)
+                            {
+                                step = LogInState.InputAccount;
+                            }
+                            break;
+                        case ConsoleKey.Enter:
+                            if (step == LogInState.InputAccount)
+                            {
+                                step = LogInState.InputPassword;
+                            }
+                            else if (step == LogInState.InputPassword)
+                            {
+                                step = LogInState.AllCredentials;
+                            }
+                            else
+                            {
+                                step = LogInState.AllCredentials;
+                            }
+                            break;
+                        default:
+                            if (step == LogInState.InputAccount)
+                            {
+                                if (Enumerable.Range('0', 10).Contains(cki.KeyChar) ||
+                                    Enumerable.Range('a', 26).Contains(cki.KeyChar) ||
+                                    Enumerable.Range('A', 26).Contains(cki.KeyChar) ||
+                                    new char[] { '-', '_', '.' }.Contains(cki.KeyChar))
+                                {
+                                    account = $"{account}{cki.KeyChar}";
+                                }
+                            }
+                            else if (step == LogInState.InputPassword)
+                            {
+                                if (Enumerable.Range(0x20, 0x5F).Contains(cki.KeyChar))
+                                {
+                                    password = $"{password}{cki.KeyChar}";
+                                }
+                            }
+                            break;
+                    }
                 }
-                */
             }
+            else if (player.State == UserState.LogOn)
+            {
+
+            }
+        }
+
+        private JObject LogIn()
+        {
+            var result = new JObject();
+            using (var fc = new FirebaseClient(new FirebaseConfig() { BasePath = "https://mobahm.firebaseio.com/" }))
+            {
+                var fr = fc.Get($"users/{player.Account}");
+                var user = fr.ResultAs<JObject>();
+                if (user == null)
+                {
+                    result.Add("error", true);
+                    result.Add("errorCode", Convert.ToInt32(LogInState.WrongAccount));
+                    result.Add("errorMessage", "존재하지 않는 아이디입니다.");
+                }
+                else if (user.Value<string>("hash").Equals(player.Hash))
+                {
+                    result.Add("error", false);
+                    /*
+                    string name = user.Value<string>("name");
+                    int money = user.Value<int>("money");
+                    int experience = user.Value<int>("experience");
+                    player = new User(player.Account, name, money, experience);
+                    */
+                    result.Add("user", user);
+                }
+                else
+                {
+                    result.Add("error", true);
+                    result.Add("errorCode", Convert.ToInt32(LogInState.WrongHash));
+                    result.Add("errorMessage", "비밀번호가 일치하지 않습니다.");
+                }
+            }
+            return result;
         }
 
 
